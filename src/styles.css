@@ -1,0 +1,222 @@
+@import "tailwindcss";
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/variable/pretendardvariable.css");
+
+:root {
+  /* Primary — blue-purple (lepisode.kr oklch 기반) */
+  --c-primary: #5b5bd6;
+  --c-primary-hover: #4646da;
+  --c-primary-light: #f0eeff;
+  --c-primary-border: #d1ccff;
+  --c-primary-border-strong: #b8b6ff;
+
+  /* Surfaces */
+  --c-bg: #f5f6f8;
+  --c-surface: #ffffff;
+
+  /* Borders */
+  --c-border: #e8e8ef;
+  --c-border-strong: #d0d0dc;
+
+  /* Text */
+  --c-text-1: #18181b;
+  --c-text-2: #52525b;
+  --c-text-3: #a1a1aa;
+
+  /* Shadows */
+  --shadow-xs: 0 1px 3px rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.07), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.09), 0 2px 4px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.12), 0 3px 6px rgba(0, 0, 0, 0.06);
+
+  /* Transition (lepisode.kr 스펙) */
+  --t: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  @apply m-0;
+  font-family:
+    "Pretendard Variable",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  letter-spacing: -0.04em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: var(--c-bg);
+  color: var(--c-text-1);
+}
+
+code,
+pre,
+kbd,
+samp {
+  letter-spacing: 0;
+  font-family: "Fira Code", "Fira Mono", source-code-pro, Menlo, Monaco,
+    Consolas, "Courier New", monospace;
+}
+
+/* ── Markdown Renderer ──────────────────────────────────── */
+.md-content {
+  color: var(--c-text-2);
+  line-height: 1.8;
+  font-size: 14px;
+}
+
+.md-content > *:first-child {
+  margin-top: 0 !important;
+}
+
+.md-content > *:last-child {
+  margin-bottom: 0 !important;
+}
+
+.md-h1 {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--c-text-1);
+  letter-spacing: -0.04em;
+  margin: 1.5em 0 0.6em;
+  padding-bottom: 0.4em;
+  border-bottom: 1px solid var(--c-border);
+}
+
+.md-h2 {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--c-text-1);
+  letter-spacing: -0.03em;
+  margin: 1.4em 0 0.5em;
+}
+
+.md-h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--c-text-1);
+  margin: 1.2em 0 0.4em;
+}
+
+.md-h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--c-text-2);
+  margin: 1em 0 0.4em;
+}
+
+.md-h5,
+.md-h6 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--c-text-2);
+  margin: 1em 0 0.3em;
+}
+
+.md-p {
+  margin: 0 0 1em;
+  color: var(--c-text-2);
+}
+
+.md-img {
+  max-width: 100%;
+  border-radius: 10px;
+  margin: 0.5em 0;
+}
+
+.md-ul,
+.md-ol {
+  margin: 0.5em 0 1em 1.25em;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3em;
+}
+
+.md-ul {
+  list-style: disc;
+}
+
+.md-ol {
+  list-style: decimal;
+}
+
+.md-ul li,
+.md-ol li {
+  color: var(--c-text-2);
+  padding-left: 0.25em;
+}
+
+.md-pre {
+  position: relative;
+  background: #0f172a;
+  color: #e2e8f0;
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  margin: 1em 0;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.md-pre code {
+  background: none;
+  color: inherit;
+  padding: 0;
+  border-radius: 0;
+  font-size: inherit;
+}
+
+.md-lang {
+  position: absolute;
+  top: 0.6rem;
+  right: 1rem;
+  font-size: 10px;
+  font-family: inherit;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.md-code {
+  background: var(--c-primary-light);
+  color: var(--c-primary);
+  border-radius: 5px;
+  padding: 0.15em 0.45em;
+  font-size: 12.5px;
+}
+
+.md-link {
+  color: var(--c-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color var(--t);
+}
+
+.md-link:hover {
+  color: var(--c-primary-hover);
+}
+
+.md-blockquote {
+  border-left: 3px solid var(--c-primary-border);
+  background: var(--c-primary-light);
+  color: var(--c-text-2);
+  font-style: italic;
+  padding: 0.75em 1.25em;
+  border-radius: 0 10px 10px 0;
+  margin: 1em 0;
+}
+
+.md-hr {
+  border: none;
+  border-top: 1px solid var(--c-border);
+  margin: 1.5em 0;
+}
+
+del {
+  color: var(--c-text-3);
+  text-decoration: line-through;
+}
