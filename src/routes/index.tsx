@@ -23,6 +23,7 @@ function PortfolioListPage() {
           {isAdmin && (
             <Link
               to="/portfolio/add"
+              search={{ edit: undefined }}
               className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-[#5b5bd6] px-4 text-[13px] font-medium text-white shadow-sm transition hover:bg-[#4a49c4]"
             >
               <svg
@@ -59,17 +60,17 @@ function PortfolioListPage() {
                 className="group relative flex h-[260px] flex-col justify-between rounded-3xl bg-gradient-to-b from-[#f7f4ff] via-white to-[#f4f8ff] border border-[#ebe7ff] px-5 py-6 shadow-[0_18px_45px_rgba(15,23,42,0.08)] transition hover:-translate-y-1 hover:shadow-[0_22px_55px_rgba(15,23,42,0.16)]"
               >
                 <div className="flex flex-col gap-2">
-                  <h2 className="text-[15px] font-semibold tracking-[-0.02em] text-gray-900">
+                  <h2 className="text-[16px] font-semibold tracking-[-0.02em] text-gray-900">
                     {item.title}
                   </h2>
-                  <p className="text-[12px] text-gray-600 leading-relaxed">
+                  <p className="text-[13px] text-gray-600 leading-relaxed">
                     {item.description}
                   </p>
-                  <p className="text-[11px] text-gray-400">{item.detail}</p>
+                  <p className="text-[12px] text-gray-400">{item.detail}</p>
                 </div>
 
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                  <span className="ml-auto text-[11px] text-[#7a7af0] group-hover:text-[#4646da]">
+                  <span className="ml-auto text-[13px] text-[#7a7af0] group-hover:text-[#4646da]">
                     자세히 보기 →
                   </span>
                 </div>

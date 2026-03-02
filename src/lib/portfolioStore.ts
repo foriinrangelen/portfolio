@@ -18,6 +18,24 @@ export function savePortfolio(portfolio: Portfolio): void {
   localStorage.setItem(KEY, JSON.stringify(list));
 }
 
+export function updatePortfolio(portfolio: Portfolio): boolean {
+  const list = getCustomPortfolios();
+  const idx = list.findIndex((p) => p.id === portfolio.id);
+  if (idx === -1) return false;
+  list[idx] = portfolio;
+  localStorage.setItem(KEY, JSON.stringify(list));
+  return true;
+}
+
+export function deletePortfolio(id: string): boolean {
+  const list = getCustomPortfolios();
+  const idx = list.findIndex((p) => p.id === id);
+  if (idx === -1) return false;
+  list.splice(idx, 1);
+  localStorage.setItem(KEY, JSON.stringify(list));
+  return true;
+}
+
 export function getAllPortfolios(): Portfolio[] {
   return [...defaultPortfolios, ...getCustomPortfolios()];
 }
@@ -37,7 +55,5 @@ export function extractPreview(body: string): string {
     .replace(/^#+\s.+$/gm, "")
     .replace(/[*_`#>-]/g, "")
     .trim();
-  return stripped.length > 120
-    ? stripped.slice(0, 120) + "..."
-    : stripped;
+  return stripped.length > 120 ? stripped.slice(0, 120) + "..." : stripped;
 }

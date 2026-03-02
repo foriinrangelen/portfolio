@@ -1,5 +1,10 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { getAllPortfolios } from "#/lib/portfolioStore";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import {
+  getAllPortfolios,
+  deletePortfolio,
+  getCustomPortfolios,
+} from "#/lib/portfolioStore";
+import { getIsAdmin } from "#/lib/auth";
 import { MarkdownRenderer } from "#/components/MarkdownRenderer";
 import { TechIcon } from "#/components/TechIcon";
 import { TECH_CATALOG } from "#/data/techCatalog";
@@ -25,7 +30,7 @@ function TechTile({ tech }: { tech: Tech }) {
           {tech.name}
         </p>
         {tech.version && (
-          <p className="mt-0.5 text-[11px] leading-tight text-gray-400">
+          <p className="mt-0.5 text-[14px] leading-tight text-gray-400">
             {tech.version}
           </p>
         )}
@@ -39,8 +44,8 @@ function SectionBlock({ section }: { section: Section }) {
   return (
     <div className="rounded-2xl bg-white border border-gray-100 overflow-hidden shadow-[0_8px_30px_rgba(15,23,42,0.06)]">
       {section.title && (
-        <div className="border-b border-gray-100 px-6 py-4 md:px-8">
-          <h2 className="text-[17px] font-semibold tracking-[-0.02em] text-gray-900">
+        <div className="border-gray-100 px-6 py-4 md:px-8">
+          <h2 className="text-[20px] font-semibold tracking-[-0.02em] text-gray-900">
             {section.title}
           </h2>
         </div>
@@ -66,8 +71,18 @@ function SectionBlock({ section }: { section: Section }) {
 /* ── Page ────────────────────────────────────────────────── */
 function PortfolioDetailPage() {
   const { id } = Route.useParams();
+  const navigate = useNavigate();
   const portfolios = getAllPortfolios();
   const portfolio = portfolios.find((p) => p.id === id);
+  const isAdmin = getIsAdmin();
+  const isCustom = getCustomPortfolios().some((p) => p.id === id);
+  const isEditable = isAdmin && isCustom;
+
+  function handleDelete() {
+    if (!confirm("정말 이 포트폴리오를 삭제하시겠습니까?")) return;
+    deletePortfolio(id);
+    navigate({ to: "/" });
+  }
 
   if (!portfolio) {
     return (
@@ -155,12 +170,72 @@ function PortfolioDetailPage() {
                 </svg>
               </a>
             )}
+            {isEditable && (
+              <div className="ml-auto flex items-center gap-2">
+                <Link
+                  to="/portfolio/add"
+                  search={{ edit: id }}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-[#f0eeff] px-4 text-[13px] font-medium text-[#5b5bd6] transition hover:bg-[#e6e2ff]"
+                >
+                  <svg
+                    viewBox="0 0 16 16"
+                    className="h-3.5 w-3.5"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M11 2.5l2.5 2.5L5 13.5H2.5V11z"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M9 4.5l2.5 2.5"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.2"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                  수정하기
+                </Link>
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-red-50 px-4 text-[13px] font-medium text-red-500 transition hover:bg-red-100 hover:text-red-600"
+                >
+                  <svg
+                    viewBox="0 0 16 16"
+                    className="h-3.5 w-3.5"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M5.5 2h5M2 4h12M3.5 4l.7 9.5a1.5 1.5 0 001.5 1.5h4.6a1.5 1.5 0 001.5-1.5L12.5 4M6.5 7v4M9.5 7v4"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  삭제하기
+                </button>
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <h1 className="text-[28px] leading-tight font-bold tracking-[-0.04em] text-gray-900 md:text-[34px]">
+              {portfolio.title}
+            </h1>
             {portfolio.github && (
               <a
                 href={portfolio.github}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-gray-900 px-4 text-[13px] font-medium text-white transition hover:bg-black"
+                aria-label="GitHub 저장소 이동"
+                title="GitHub 저장소 이동"
+                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-900 text-white transition hover:bg-black"
               >
                 <svg viewBox="0 0 16 16" className="h-4 w-4" aria-hidden="true">
                   <path
@@ -169,13 +244,9 @@ function PortfolioDetailPage() {
                     fill="currentColor"
                   />
                 </svg>
-                GitHub
               </a>
             )}
           </div>
-          <h1 className="text-[28px] leading-tight font-bold tracking-[-0.04em] text-gray-900 md:text-[34px]">
-            {portfolio.title}
-          </h1>
           {portfolio.description && (
             <p className="text-[14px] text-gray-500 max-w-2xl leading-relaxed">
               {portfolio.description}
@@ -191,7 +262,7 @@ function PortfolioDetailPage() {
         {/* 기술 스택 — 정사각형 타일 */}
         {portfolio.techs.length > 0 && (
           <section className="rounded-2xl bg-white border border-gray-100 p-6 shadow-[0_8px_30px_rgba(15,23,42,0.06)] md:p-7">
-            <h2 className="mb-4 text-[15px] font-semibold uppercase tracking-widest">
+            <h2 className="mb-4 text-[20px] font-semibold uppercase tracking-widest">
               기술 스택
             </h2>
             <div className="flex flex-wrap gap-2.5">

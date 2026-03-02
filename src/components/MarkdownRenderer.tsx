@@ -1,9 +1,37 @@
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+import hljs from "highlight.js/lib/core";
+import typescript from "highlight.js/lib/languages/typescript";
+import javascript from "highlight.js/lib/languages/javascript";
+import xml from "highlight.js/lib/languages/xml";
+import css from "highlight.js/lib/languages/css";
+import json from "highlight.js/lib/languages/json";
+import bash from "highlight.js/lib/languages/bash";
+import python from "highlight.js/lib/languages/python";
+import java from "highlight.js/lib/languages/java";
+import sql from "highlight.js/lib/languages/sql";
+
+hljs.registerLanguage("typescript", typescript);
+hljs.registerLanguage("ts", typescript);
+hljs.registerLanguage("tsx", typescript);
+hljs.registerLanguage("javascript", javascript);
+hljs.registerLanguage("js", javascript);
+hljs.registerLanguage("jsx", javascript);
+hljs.registerLanguage("html", xml);
+hljs.registerLanguage("xml", xml);
+hljs.registerLanguage("css", css);
+hljs.registerLanguage("json", json);
+hljs.registerLanguage("bash", bash);
+hljs.registerLanguage("sh", bash);
+hljs.registerLanguage("shell", bash);
+hljs.registerLanguage("python", python);
+hljs.registerLanguage("py", python);
+hljs.registerLanguage("java", java);
+hljs.registerLanguage("sql", sql);
+
+function highlightCode(code: string, lang: string): string {
+  if (lang && hljs.getLanguage(lang)) {
+    return hljs.highlight(code, { language: lang }).value;
+  }
+  return hljs.highlightAuto(code).value;
 }
 
 function parseInline(text: string): string {
@@ -25,10 +53,11 @@ function markdownToHtml(md: string): string {
   const withPlaceholders = md.replace(
     /```(\w*)\n?([\s\S]*?)```/g,
     (_, lang, code) => {
-      const escaped = escapeHtml(code.trim());
+      const trimmed = code.trimEnd();
+      const highlighted = highlightCode(trimmed, lang);
       const langTag = lang ? `<span class='md-lang'>${lang}</span>` : "";
       codeBlocks.push(
-        `<pre class='md-pre'>${langTag}<code>${escaped}</code></pre>`,
+        `<pre class='md-pre'>${langTag}<code class="hljs">${highlighted}</code></pre>`,
       );
       return `\x00BLOCK${codeBlocks.length - 1}\x00`;
     },

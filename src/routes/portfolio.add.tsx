@@ -1,18 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { CATEGORIES, TECH_CATALOG } from "#/data/techCatalog";
+import { CATEGORIES, TECH_CATALOG, techIconUrl } from "#/data/techCatalog";
 import type { CatalogTech } from "#/data/techCatalog";
 import { getIsAdmin } from "#/lib/auth";
 import {
   extractPreview,
   generateId,
+  getAllPortfolios,
   savePortfolio,
+  updatePortfolio,
 } from "#/lib/portfolioStore";
 import { MarkdownRenderer } from "#/components/MarkdownRenderer";
 import { TechIcon } from "#/components/TechIcon";
 
 export const Route = createFileRoute("/portfolio/add")({
   component: AddPortfolioPage,
+  validateSearch: (search: Record<string, unknown>) => ({
+    edit: (search.edit as string) || undefined,
+  }),
 });
 
 /* ── Types ───────────────────────────────────────────────── */
@@ -32,9 +37,6 @@ function uid() {
 }
 function makeSection(): SectionDraft {
   return { id: uid(), title: "", body: "", image: null, tab: "write" };
-}
-function techIconUrl(t: CatalogTech) {
-  return `https://cdn.simpleicons.org/${t.slug}/${t.color}`;
 }
 
 /* ── Section Editor ──────────────────────────────────────── */
@@ -311,24 +313,43 @@ function SectionEditor({
 /* ── Main Page ───────────────────────────────────────────── */
 function AddPortfolioPage() {
   const navigate = Route.useNavigate();
+  const { edit: editId } = Route.useSearch();
+  const editTarget = editId ? getAllPortfolios().find((p) => p.id === editId) : undefined;
+  const isEditMode = !!editTarget;
 
   useEffect(() => {
     if (!getIsAdmin()) navigate({ to: "/" });
   }, [navigate]);
 
   // Basic info
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [url, setUrl] = useState("");
-  const [github, setGithub] = useState("");
+  const [title, setTitle] = useState(editTarget?.title ?? "");
+  const [description, setDescription] = useState(editTarget?.description ?? "");
+  const [url, setUrl] = useState(editTarget?.url ?? "");
+  const [github, setGithub] = useState(editTarget?.github ?? "");
 
   // Tech selector
-  const [selectedTechs, setSelectedTechs] = useState<SelectedTech[]>([]);
+  const [selectedTechs, setSelectedTechs] = useState<SelectedTech[]>(
+    editTarget?.techs ?? [],
+  );
   const [techSearch, setTechSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("전체");
 
   // Sections
-  const [sections, setSections] = useState<SectionDraft[]>([makeSection()]);
+  const [sections, setSections] = useState<SectionDraft[]>(() => {
+    if (editTarget?.sections && editTarget.sections.length > 0) {
+      return editTarget.sections.map((s) => ({
+        id: s.id,
+        title: s.title,
+        body: s.body,
+        image: s.image ?? null,
+        tab: "write" as const,
+      }));
+    }
+    if (editTarget?.body) {
+      return [{ id: uid(), title: "", body: editTarget.body, image: null, tab: "write" as const }];
+    }
+    return [makeSection()];
+  });
 
   const filteredTechs = useMemo(
     () =>
@@ -378,7 +399,6 @@ function AddPortfolioPage() {
 
   function handleSave() {
     if (!title.trim()) return;
-    const id = generateId(title);
     const cleanSections = sections
       .filter((s) => s.title || s.body)
       .map(({ id: sid, title: stitle, body, image }) => ({
@@ -388,18 +408,35 @@ function AddPortfolioPage() {
         image: image ?? undefined,
       }));
     const combinedBody = sections.map((s) => s.body).join("\n\n");
-    savePortfolio({
-      id,
-      title: title.trim(),
-      description: description.trim(),
-      detail: extractPreview(combinedBody || description),
-      body: combinedBody,
-      sections: cleanSections.length ? cleanSections : undefined,
-      techs: selectedTechs,
-      url: url.trim(),
-      github: github.trim() || undefined,
-    });
-    navigate({ to: "/portfolio/$id", params: { id } });
+
+    if (isEditMode) {
+      updatePortfolio({
+        id: editTarget.id,
+        title: title.trim(),
+        description: description.trim(),
+        detail: extractPreview(combinedBody || description),
+        body: combinedBody,
+        sections: cleanSections.length ? cleanSections : undefined,
+        techs: selectedTechs,
+        url: url.trim(),
+        github: github.trim() || undefined,
+      });
+      navigate({ to: "/portfolio/$id", params: { id: editTarget.id } });
+    } else {
+      const id = generateId(title);
+      savePortfolio({
+        id,
+        title: title.trim(),
+        description: description.trim(),
+        detail: extractPreview(combinedBody || description),
+        body: combinedBody,
+        sections: cleanSections.length ? cleanSections : undefined,
+        techs: selectedTechs,
+        url: url.trim(),
+        github: github.trim() || undefined,
+      });
+      navigate({ to: "/portfolio/$id", params: { id } });
+    }
   }
 
   return (
@@ -429,7 +466,7 @@ function AddPortfolioPage() {
               목록으로
             </Link>
             <span className="text-[14px] font-semibold text-gray-800">
-              포트폴리오 추가
+              {isEditMode ? "포트폴리오 수정" : "포트폴리오 추가"}
             </span>
           </div>
           <button
@@ -438,7 +475,7 @@ function AddPortfolioPage() {
             disabled={!title.trim()}
             className="inline-flex h-9 items-center gap-2 rounded-xl bg-[#5b5bd6] px-5 text-[13px] font-medium text-white shadow-sm transition hover:bg-[#4646da] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            저장하기
+            {isEditMode ? "수정 완료" : "저장하기"}
           </button>
         </div>
       </div>
@@ -500,39 +537,49 @@ function AddPortfolioPage() {
 
           {/* 선택된 기술 */}
           {selectedTechs.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-[11px] text-gray-400">
-                {selectedTechs.length}개 선택됨 — 버전 직접 수정 가능
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-gray-500">
+                선택된 기술{" "}
+                <span className="text-[#5b5bd6]">{selectedTechs.length}</span>개
               </p>
-              <div className="flex flex-wrap gap-2">
+              <div className="grid gap-2 sm:grid-cols-2">
                 {selectedTechs.map((tech) => {
                   const cat = TECH_CATALOG.find((c) => c.name === tech.name);
                   return (
                     <div
                       key={tech.name}
-                      className="flex items-center gap-2 rounded-xl border border-[#dddaff] bg-[#f7f4ff] pl-2.5 pr-1.5 py-1.5"
+                      className="group flex items-center gap-3 rounded-xl border border-[#e0ddff] bg-[#faf9ff] px-4 py-3 transition-all hover:border-[#c5c0ff] hover:shadow-sm"
                     >
                       <TechIcon
                         src={tech.icon}
                         name={tech.name}
                         color={cat?.color ?? "5b5bd6"}
-                        className="h-4 w-4"
+                        className="h-7 w-7"
                       />
-                      <span className="text-[12px] font-medium text-[#4646da]">
+                      <span className="min-w-0 flex-1 truncate text-sm font-semibold text-gray-800">
                         {tech.name}
                       </span>
-                      <input
-                        type="text"
-                        value={tech.version}
-                        onChange={(e) =>
-                          updateVersion(tech.name, e.target.value)
-                        }
-                        className="w-12 rounded-md border border-[#d1ccff] bg-white px-1.5 py-0.5 text-[10px] text-gray-500 outline-none focus:border-[#5b5bd6]"
-                      />
+                      <div className="flex items-center gap-1 rounded-lg border border-[#d1ccff] bg-white px-2.5 py-1.5 transition-all focus-within:border-[#5b5bd6] focus-within:ring-2 focus-within:ring-[#5b5bd6]/20 hover:border-[#b8b6ff]">
+                        <span className="text-xs font-semibold text-[#8b8bc7]">
+                          v
+                        </span>
+                        <input
+                          type="text"
+                          value={tech.version.replace(/^v/, "")}
+                          onChange={(e) =>
+                            updateVersion(
+                              tech.name,
+                              e.target.value ? `v${e.target.value}` : "",
+                            )
+                          }
+                          placeholder="1.0"
+                          className="w-14 bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-300"
+                        />
+                      </div>
                       <button
                         type="button"
                         onClick={() => removeTech(tech.name)}
-                        className="flex h-5 w-5 items-center justify-center rounded-full text-[13px] text-[#a0a0e0] transition hover:bg-[#ebe8ff] hover:text-[#5b5bd6]"
+                        className="flex h-7 w-7 items-center justify-center rounded-lg text-base text-[#b0b0e0] opacity-0 transition-all group-hover:opacity-100 hover:bg-[#ebe8ff] hover:text-[#5b5bd6]"
                       >
                         ×
                       </button>

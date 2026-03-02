@@ -36,17 +36,17 @@ export const portfolios: Portfolio[] = [
       {
         name: "React",
         version: "v18.2.0",
-        icon: "https://cdn.simpleicons.org/react/61DAFB",
+        icon: "https://raw.githubusercontent.com/tandpfun/skill-icons/main/icons/React-Dark.svg",
       },
       {
         name: "TypeScript",
         version: "v5.x",
-        icon: "https://cdn.simpleicons.org/typescript/3178C6",
+        icon: "https://raw.githubusercontent.com/tandpfun/skill-icons/main/icons/TypeScript.svg",
       },
       {
         name: "Tailwind CSS",
         version: "v3.x",
-        icon: "https://cdn.simpleicons.org/tailwindcss/06B6D4",
+        icon: "https://raw.githubusercontent.com/tandpfun/skill-icons/main/icons/TailwindCSS-Dark.svg",
       },
     ],
   },
@@ -62,17 +62,17 @@ export const portfolios: Portfolio[] = [
       {
         name: "Next.js",
         version: "v14.x",
-        icon: "https://cdn.simpleicons.org/nextdotjs/000000",
+        icon: "https://raw.githubusercontent.com/tandpfun/skill-icons/main/icons/NextJS-Dark.svg",
       },
       {
         name: "Node.js",
         version: "v20.x",
-        icon: "https://cdn.simpleicons.org/nodedotjs/339933",
+        icon: "https://raw.githubusercontent.com/tandpfun/skill-icons/main/icons/NodeJS-Dark.svg",
       },
       {
         name: "MongoDB",
         version: "v7.x",
-        icon: "https://cdn.simpleicons.org/mongodb/47A248",
+        icon: "https://raw.githubusercontent.com/tandpfun/skill-icons/main/icons/MongoDB.svg",
       },
     ],
   },
@@ -92,7 +92,7 @@ export const portfolios: Portfolio[] = [
       {
         name: "Figma",
         version: "Design v1",
-        icon: "https://cdn.simpleicons.org/figma/F24E1E",
+        icon: "https://raw.githubusercontent.com/tandpfun/skill-icons/main/icons/Figma-Dark.svg",
       },
       {
         name: "Framer Motion",
@@ -102,12 +102,12 @@ export const portfolios: Portfolio[] = [
       {
         name: "Jest",
         version: "v29.x",
-        icon: "https://cdn.simpleicons.org/jest/C21325",
+        icon: "https://raw.githubusercontent.com/tandpfun/skill-icons/main/icons/Jest.svg",
       },
       {
         name: "Vitest",
         version: "v1.x",
-        icon: "https://cdn.simpleicons.org/vite/646CFF",
+        icon: "https://raw.githubusercontent.com/tandpfun/skill-icons/main/icons/Vitest-Dark.svg",
       },
     ],
   },
