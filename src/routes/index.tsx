@@ -1,12 +1,23 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { getIsAdmin } from "#/lib/auth";
-import { getAllPortfolios } from "#/lib/portfolioStore";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { getIsAdmin, logout } from "#/lib/auth";
+import { fetchAllPortfolios, portfolioKeys } from "#/lib/portfolioStore";
 
 export const Route = createFileRoute("/")({ component: PortfolioListPage });
 
 function PortfolioListPage() {
+  const navigate = useNavigate();
   const isAdmin = getIsAdmin();
-  const portfolios = getAllPortfolios();
+  const { data: portfolios = [], isLoading: loading } = useQuery({
+    queryKey: portfolioKeys.all,
+    queryFn: fetchAllPortfolios,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  function handleLogout() {
+    logout();
+    navigate({ to: "/login" });
+  }
 
   return (
     <div className="min-h-screen bg-[#f5f6fa] px-4 py-12">
@@ -20,31 +31,54 @@ function PortfolioListPage() {
               {portfolios.length}개의 프로젝트
             </p>
           </div>
-          {isAdmin && (
-            <Link
-              to="/portfolio/add"
-              search={{ edit: undefined }}
-              className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-[#5b5bd6] px-4 text-[13px] font-medium text-white shadow-sm transition hover:bg-[#4a49c4]"
-            >
-              <svg
-                viewBox="0 0 16 16"
-                className="h-3.5 w-3.5"
-                aria-hidden="true"
+          <div className="flex items-center gap-2">
+            {isAdmin && (
+              <Link
+                to="/portfolio/add"
+                search={{ edit: undefined }}
+                className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-[#5b5bd6] px-4 text-[13px] font-medium text-white shadow-sm transition hover:bg-[#4a49c4]"
               >
+                <svg
+                  viewBox="0 0 16 16"
+                  className="h-3.5 w-3.5"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M8 3v10M3 8h10"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                  />
+                </svg>
+                추가하기
+              </Link>
+            )}
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-gray-100 px-4 text-[13px] font-medium text-gray-600 transition hover:bg-gray-200 hover:text-gray-800"
+            >
+              <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" aria-hidden="true">
                 <path
-                  d="M8 3v10M3 8h10"
+                  d="M6 2H3.5A1.5 1.5 0 002 3.5v9A1.5 1.5 0 003.5 14H6M10.5 11.5L14 8l-3.5-3.5M14 8H6"
                   fill="none"
                   stroke="currentColor"
-                  strokeWidth="1.8"
+                  strokeWidth="1.3"
                   strokeLinecap="round"
+                  strokeLinejoin="round"
                 />
               </svg>
-              추가하기
-            </Link>
-          )}
+              로그아웃
+            </button>
+          </div>
         </header>
 
-        {portfolios.length === 0 ? (
+        {loading ? (
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-gray-100 bg-white py-20 shadow-[0_4px_20px_rgba(15,23,42,0.06)]">
+            <p className="text-[14px] text-gray-400">불러오는 중...</p>
+          </div>
+        ) : portfolios.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-2xl border border-gray-100 bg-white py-20 shadow-[0_4px_20px_rgba(15,23,42,0.06)]">
             <p className="text-[14px] text-gray-400">
               등록된 포트폴리오가 없습니다.
@@ -63,10 +97,11 @@ function PortfolioListPage() {
                   <h2 className="text-[16px] font-semibold tracking-[-0.02em] text-gray-900">
                     {item.title}
                   </h2>
-                  <p className="text-[13px] text-gray-600 leading-relaxed">
-                    {item.description}
-                  </p>
-                  <p className="text-[12px] text-gray-400">{item.detail}</p>
+                  {item.description && (
+                    <p className="text-[13px] text-gray-500 leading-relaxed line-clamp-3">
+                      {item.description}
+                    </p>
+                  )}
                 </div>
 
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2">

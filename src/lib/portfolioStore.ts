@@ -1,9 +1,24 @@
-import { portfolios as defaultPortfolios } from "#/data/portfolios";
 import type { Portfolio } from "#/data/portfolios";
+import {
+  isApiEnabled,
+  fetchPortfolios as apiFetch,
+  createPortfolio as apiCreate,
+  patchPortfolio as apiPatch,
+  removePortfolio as apiRemove,
+} from "./api";
+
+/* ── Query Keys ─────────────────────────────────────────── */
+
+export const portfolioKeys = {
+  all: ["portfolios"] as const,
+  detail: (id: string) => ["portfolios", id] as const,
+};
+
+/* ── localStorage layer ─────────────────────────────────── */
 
 const KEY = "custom_portfolios";
 
-export function getCustomPortfolios(): Portfolio[] {
+function getLocalPortfolios(): Portfolio[] {
   try {
     const raw = localStorage.getItem(KEY);
     return raw ? (JSON.parse(raw) as Portfolio[]) : [];
@@ -12,33 +27,60 @@ export function getCustomPortfolios(): Portfolio[] {
   }
 }
 
-export function savePortfolio(portfolio: Portfolio): void {
-  const list = getCustomPortfolios();
+function setLocalPortfolios(list: Portfolio[]): void {
+  localStorage.setItem(KEY, JSON.stringify(list));
+}
+
+/* ── Query Functions ─────────────────────────────────────── */
+
+export async function fetchAllPortfolios(): Promise<Portfolio[]> {
+  if (isApiEnabled()) return apiFetch();
+  return getLocalPortfolios();
+}
+
+export async function fetchPortfolioById(
+  id: string,
+): Promise<Portfolio | undefined> {
+  const list = await fetchAllPortfolios();
+  return list.find((p) => p.id === id);
+}
+
+/* ── Mutation Functions ──────────────────────────────────── */
+
+export async function savePortfolio(portfolio: Portfolio): Promise<void> {
+  if (isApiEnabled()) {
+    await apiCreate(portfolio);
+    return;
+  }
+  const list = getLocalPortfolios();
   list.push(portfolio);
-  localStorage.setItem(KEY, JSON.stringify(list));
+  setLocalPortfolios(list);
 }
 
-export function updatePortfolio(portfolio: Portfolio): boolean {
-  const list = getCustomPortfolios();
+export async function updatePortfolio(portfolio: Portfolio): Promise<void> {
+  if (isApiEnabled()) {
+    await apiPatch(portfolio);
+    return;
+  }
+  const list = getLocalPortfolios();
   const idx = list.findIndex((p) => p.id === portfolio.id);
-  if (idx === -1) return false;
-  list[idx] = portfolio;
-  localStorage.setItem(KEY, JSON.stringify(list));
-  return true;
+  if (idx !== -1) {
+    list[idx] = portfolio;
+    setLocalPortfolios(list);
+  }
 }
 
-export function deletePortfolio(id: string): boolean {
-  const list = getCustomPortfolios();
-  const idx = list.findIndex((p) => p.id === id);
-  if (idx === -1) return false;
-  list.splice(idx, 1);
-  localStorage.setItem(KEY, JSON.stringify(list));
-  return true;
+export async function deletePortfolio(id: string): Promise<void> {
+  if (isApiEnabled()) {
+    await apiRemove(id);
+    return;
+  }
+  const list = getLocalPortfolios();
+  const filtered = list.filter((p) => p.id !== id);
+  setLocalPortfolios(filtered);
 }
 
-export function getAllPortfolios(): Portfolio[] {
-  return [...defaultPortfolios, ...getCustomPortfolios()];
-}
+/* ── 유틸리티 ───────────────────────────────────────────── */
 
 export function generateId(title: string): string {
   const slug = title
@@ -47,13 +89,4 @@ export function generateId(title: string): string {
     .replace(/[^a-z0-9-가-힣]/g, "")
     .slice(0, 40);
   return `${slug}-${Date.now()}`;
-}
-
-export function extractPreview(body: string): string {
-  const stripped = body
-    .replace(/```[\s\S]*?```/g, "")
-    .replace(/^#+\s.+$/gm, "")
-    .replace(/[*_`#>-]/g, "")
-    .trim();
-  return stripped.length > 120 ? stripped.slice(0, 120) + "..." : stripped;
 }

@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { CATEGORIES, TECH_CATALOG, techIconUrl } from "#/data/techCatalog";
 import type { CatalogTech } from "#/data/techCatalog";
 import { getIsAdmin } from "#/lib/auth";
 import {
-  extractPreview,
   generateId,
-  getAllPortfolios,
+  fetchPortfolioById,
   savePortfolio,
   updatePortfolio,
+  portfolioKeys,
 } from "#/lib/portfolioStore";
 import { MarkdownRenderer } from "#/components/MarkdownRenderer";
 import { TechIcon } from "#/components/TechIcon";
@@ -46,12 +47,18 @@ function SectionEditor({
   total,
   onChange,
   onRemove,
+  isSectionDragging,
+  onDragStart,
+  onDragEnd,
 }: {
   section: SectionDraft;
   index: number;
   total: number;
   onChange: (u: Partial<SectionDraft>) => void;
   onRemove: () => void;
+  isSectionDragging: boolean;
+  onDragStart: (e: React.DragEvent) => void;
+  onDragEnd: () => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -97,9 +104,27 @@ function SectionEditor({
   }
 
   return (
-    <div className="rounded-2xl bg-white border border-gray-100 shadow-[0_4px_20px_rgba(15,23,42,0.06)] overflow-hidden">
+    <div
+      className={`rounded-2xl bg-white border overflow-hidden transition-all duration-200 ${isSectionDragging ? "opacity-40 border-dashed border-[#5b5bd6] shadow-none scale-[0.98]" : "border-gray-100 shadow-[0_4px_20px_rgba(15,23,42,0.06)]"}`}
+    >
       {/* Header */}
-      <div className="flex items-center gap-3 border-b border-gray-100 bg-gray-50/60 px-5 py-3">
+      <div className="flex items-center gap-2 border-b border-gray-100 bg-gray-50/60 px-4 py-3">
+        <div
+          draggable
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
+          className="flex h-7 w-5 shrink-0 cursor-grab items-center justify-center rounded text-gray-300 transition hover:bg-gray-200/60 hover:text-gray-500 active:cursor-grabbing"
+          title="드래그하여 순서 변경"
+        >
+          <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" aria-hidden="true">
+            <circle cx="5.5" cy="3" r="1.2" fill="currentColor" />
+            <circle cx="10.5" cy="3" r="1.2" fill="currentColor" />
+            <circle cx="5.5" cy="8" r="1.2" fill="currentColor" />
+            <circle cx="10.5" cy="8" r="1.2" fill="currentColor" />
+            <circle cx="5.5" cy="13" r="1.2" fill="currentColor" />
+            <circle cx="10.5" cy="13" r="1.2" fill="currentColor" />
+          </svg>
+        </div>
         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#5b5bd6]/10 text-[11px] font-bold text-[#5b5bd6]">
           {index + 1}
         </span>
@@ -179,7 +204,7 @@ function SectionEditor({
             <img
               src={section.image}
               alt={section.title || "섹션 이미지"}
-              className="max-h-[400px] w-full object-cover"
+              className="w-full object-contain bg-white"
             />
             {isDragging && (
               <div className="absolute inset-0 flex items-center justify-center bg-[#5b5bd6]/20 backdrop-blur-sm">
@@ -310,46 +335,207 @@ function SectionEditor({
   );
 }
 
+/* ── Section Minimap ──────────────────────────────────────── */
+function SectionMinimap({
+  sections,
+  activeIdx,
+  onReorder,
+  onScrollTo,
+}: {
+  sections: SectionDraft[];
+  activeIdx: number;
+  onReorder: (from: number, to: number) => void;
+  onScrollTo: (idx: number) => void;
+}) {
+  const [mDrag, setMDrag] = useState<number | null>(null);
+  const [mOver, setMOver] = useState<number | null>(null);
+
+  if (sections.length < 2) return null;
+
+  function onTileDragOver(e: React.DragEvent, idx: number) {
+    if (!e.dataTransfer.types.includes("application/minimap-drag")) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    const rect = e.currentTarget.getBoundingClientRect();
+    const mid = rect.top + rect.height / 2;
+    const target = e.clientY < mid ? idx : idx + 1;
+    if (target !== mOver) setMOver(target);
+  }
+
+  function onTileDrop(e: React.DragEvent) {
+    e.preventDefault();
+    if (mDrag != null && mOver != null) {
+      const to = mOver > mDrag ? mOver - 1 : mOver;
+      if (to !== mDrag) onReorder(mDrag, to);
+    }
+    setMDrag(null);
+    setMOver(null);
+  }
+
+  return (
+    <div className="rounded-2xl border border-gray-200/60 bg-white/80 p-3 shadow-[0_8px_32px_rgba(0,0,0,0.08)] backdrop-blur-xl">
+      {/* <p className="mb-3 text-center text-[10px] font-bold uppercase tracking-[0.15em] text-gray-400">
+        섹션
+      </p> */}
+      <div className="flex flex-col gap-2">
+        {sections.map((s, i) => {
+          const active = activeIdx === i;
+          const dragging = mDrag === i;
+          const showLine =
+            mDrag != null &&
+            mOver === i &&
+            mOver !== mDrag &&
+            mOver !== mDrag + 1;
+          return (
+            <div key={s.id}>
+              <div
+                className={`rounded-full transition-all duration-150 ${showLine ? "mb-2 h-[3px] bg-[#5b5bd6] shadow-[0_0_6px_rgba(91,91,214,0.4)]" : "h-0"}`}
+              />
+              <button
+                type="button"
+                draggable
+                onClick={() => onScrollTo(i)}
+                onDragStart={(e) => {
+                  e.dataTransfer.effectAllowed = "move";
+                  e.dataTransfer.setData("application/minimap-drag", String(i));
+                  requestAnimationFrame(() => setMDrag(i));
+                }}
+                onDragOver={(e) => onTileDragOver(e, i)}
+                onDrop={onTileDrop}
+                onDragEnd={() => {
+                  setMDrag(null);
+                  setMOver(null);
+                }}
+                className={`flex h-16 w-16 cursor-grab flex-col items-center justify-center gap-0.5 rounded-xl transition-all duration-150 active:cursor-grabbing ${
+                  dragging
+                    ? "scale-90 border-2 border-dashed border-[#5b5bd6] opacity-40"
+                    : active
+                      ? "bg-[#5b5bd6] text-white shadow-lg shadow-[#5b5bd6]/25"
+                      : "border border-gray-200/80 bg-gray-50 text-gray-500 hover:border-[#c5c0ff] hover:bg-[#f0eeff] hover:text-[#5b5bd6]"
+                }`}
+                title={s.title || `섹션 ${i + 1}`}
+              >
+                {/* 미니맵 숫자 */}
+                <span className="text-ml font-bold leading-none">{i + 1}</span>
+                {s.title && !dragging && (
+                  // 미니맵 타이틀
+                  <span
+                    className={`w-full truncate px-1.5 text-center text-[10px] font-medium leading-tight ${active ? "text-white/70" : "text-gray-400"}`}
+                  >
+                    {s.title}
+                  </span>
+                )}
+              </button>
+            </div>
+          );
+        })}
+        {mDrag != null && (
+          <div
+            onDragOver={(e) => {
+              if (!e.dataTransfer.types.includes("application/minimap-drag"))
+                return;
+              e.preventDefault();
+              if (mOver !== sections.length) setMOver(sections.length);
+            }}
+            onDrop={onTileDrop}
+            className="min-h-[10px]"
+          >
+            <div
+              className={`rounded-full transition-all duration-150 ${mOver === sections.length && mOver !== (mDrag ?? -1) + 1 ? "h-[3px] bg-[#5b5bd6] shadow-[0_0_6px_rgba(91,91,214,0.4)]" : "h-0"}`}
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ── Main Page ───────────────────────────────────────────── */
 function AddPortfolioPage() {
   const navigate = Route.useNavigate();
+  const queryClient = useQueryClient();
   const { edit: editId } = Route.useSearch();
-  const editTarget = editId ? getAllPortfolios().find((p) => p.id === editId) : undefined;
-  const isEditMode = !!editTarget;
+  const isEditMode = !!editId;
 
-  useEffect(() => {
-    if (!getIsAdmin()) navigate({ to: "/" });
-  }, [navigate]);
+  const { data: editTarget, isLoading: loadingEdit } = useQuery({
+    queryKey: portfolioKeys.detail(editId ?? ""),
+    queryFn: () => fetchPortfolioById(editId!),
+    enabled: !!editId,
+    staleTime: 1000 * 60 * 5,
+  });
 
   // Basic info
-  const [title, setTitle] = useState(editTarget?.title ?? "");
-  const [description, setDescription] = useState(editTarget?.description ?? "");
-  const [url, setUrl] = useState(editTarget?.url ?? "");
-  const [github, setGithub] = useState(editTarget?.github ?? "");
-
-  // Tech selector
-  const [selectedTechs, setSelectedTechs] = useState<SelectedTech[]>(
-    editTarget?.techs ?? [],
-  );
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [url, setUrl] = useState("");
+  const [github, setGithub] = useState("");
+  const [selectedTechs, setSelectedTechs] = useState<SelectedTech[]>([]);
   const [techSearch, setTechSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("전체");
+  const [sections, setSections] = useState<SectionDraft[]>([makeSection()]);
+  const [formReady, setFormReady] = useState(!isEditMode);
+  const sectionElRefs = useRef(new Map<string, HTMLDivElement>());
+  const [activeSection, setActiveSection] = useState(0);
 
-  // Sections
-  const [sections, setSections] = useState<SectionDraft[]>(() => {
-    if (editTarget?.sections && editTarget.sections.length > 0) {
-      return editTarget.sections.map((s) => ({
-        id: s.id,
-        title: s.title,
-        body: s.body,
-        image: s.image ?? null,
-        tab: "write" as const,
-      }));
+  useEffect(() => {
+    if (!getIsAdmin()) {
+      navigate({ to: "/" });
+      return;
     }
-    if (editTarget?.body) {
-      return [{ id: uid(), title: "", body: editTarget.body, image: null, tab: "write" as const }];
+  }, [navigate]);
+
+  useEffect(() => {
+    if (!editTarget || formReady) return;
+    setTitle(editTarget.title);
+    setDescription(editTarget.description ?? "");
+    setUrl(editTarget.url ?? "");
+    setGithub(editTarget.github ?? "");
+    setSelectedTechs(editTarget.techs ?? []);
+    if (editTarget.sections && editTarget.sections.length > 0) {
+      setSections(
+        editTarget.sections.map((s) => ({
+          id: s.id,
+          title: s.title,
+          body: s.body,
+          image: s.image ?? null,
+          tab: "write" as const,
+        })),
+      );
+    } else if (editTarget.body) {
+      setSections([
+        {
+          id: uid(),
+          title: "",
+          body: editTarget.body,
+          image: null,
+          tab: "write" as const,
+        },
+      ]);
     }
-    return [makeSection()];
-  });
+    setFormReady(true);
+  }, [editTarget, formReady]);
+
+  const sectionIdsKey = sections.map((s) => s.id).join(",");
+  useEffect(() => {
+    const ids = sectionIdsKey.split(",");
+    const refs = sectionElRefs.current;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            const id = entry.target.getAttribute("data-section-id");
+            if (id) {
+              const idx = ids.indexOf(id);
+              if (idx !== -1) setActiveSection(idx);
+            }
+          }
+        }
+      },
+      { threshold: 0.15, rootMargin: "-15% 0px -55% 0px" },
+    );
+    refs.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [sectionIdsKey]);
 
   const filteredTechs = useMemo(
     () =>
@@ -397,46 +583,110 @@ function AddPortfolioPage() {
     setSections((p) => [...p, makeSection()]);
   }
 
+  function moveSection(from: number, to: number) {
+    setSections((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+  }
+
+  function scrollToSection(idx: number) {
+    const id = sections[idx]?.id;
+    if (!id) return;
+    const el = sectionElRefs.current.get(id);
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [overIdx, setOverIdx] = useState<number | null>(null);
+
+  function handleSectionDragStart(e: React.DragEvent, idx: number) {
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("application/section-drag", String(idx));
+    requestAnimationFrame(() => setDragIdx(idx));
+  }
+
+  function handleSectionDragOver(e: React.DragEvent, idx: number) {
+    if (!e.dataTransfer.types.includes("application/section-drag")) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    const rect = e.currentTarget.getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    const target = e.clientY < midY ? idx : idx + 1;
+    if (target !== overIdx) setOverIdx(target);
+    const edge = 80;
+    const speed = 14;
+    if (e.clientY < edge) window.scrollBy(0, -speed);
+    else if (e.clientY > window.innerHeight - edge) window.scrollBy(0, speed);
+  }
+
+  function handleSectionDrop(e: React.DragEvent) {
+    e.preventDefault();
+    if (dragIdx != null && overIdx != null) {
+      const to = overIdx > dragIdx ? overIdx - 1 : overIdx;
+      if (to !== dragIdx) moveSection(dragIdx, to);
+    }
+    setDragIdx(null);
+    setOverIdx(null);
+  }
+
+  function handleSectionDragEnd() {
+    setDragIdx(null);
+    setOverIdx(null);
+  }
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const cleanSections = sections
+        .filter((s) => s.title || s.body)
+        .map(({ id: sid, title: stitle, body, image }) => ({
+          id: sid,
+          title: stitle,
+          body,
+          image: image ?? undefined,
+        }));
+      const combinedBody = sections.map((s) => s.body).join("\n\n");
+      const portfolio = {
+        title: title.trim(),
+        description: description.trim(),
+        detail: description.trim(),
+        body: combinedBody,
+        sections: cleanSections.length ? cleanSections : undefined,
+        techs: selectedTechs,
+        url: url.trim(),
+        github: github.trim() || undefined,
+      };
+      if (isEditMode && editTarget) {
+        await updatePortfolio({ ...portfolio, id: editTarget.id });
+        return editTarget.id;
+      } else {
+        const newId = generateId(title);
+        await savePortfolio({ ...portfolio, id: newId });
+        return newId;
+      }
+    },
+    onSuccess: (savedId) => {
+      queryClient.invalidateQueries({ queryKey: portfolioKeys.all });
+      queryClient.invalidateQueries({
+        queryKey: portfolioKeys.detail(savedId),
+      });
+      navigate({ to: "/portfolio/$id", params: { id: savedId } });
+    },
+  });
+
   function handleSave() {
     if (!title.trim()) return;
-    const cleanSections = sections
-      .filter((s) => s.title || s.body)
-      .map(({ id: sid, title: stitle, body, image }) => ({
-        id: sid,
-        title: stitle,
-        body,
-        image: image ?? undefined,
-      }));
-    const combinedBody = sections.map((s) => s.body).join("\n\n");
+    saveMutation.mutate();
+  }
 
-    if (isEditMode) {
-      updatePortfolio({
-        id: editTarget.id,
-        title: title.trim(),
-        description: description.trim(),
-        detail: extractPreview(combinedBody || description),
-        body: combinedBody,
-        sections: cleanSections.length ? cleanSections : undefined,
-        techs: selectedTechs,
-        url: url.trim(),
-        github: github.trim() || undefined,
-      });
-      navigate({ to: "/portfolio/$id", params: { id: editTarget.id } });
-    } else {
-      const id = generateId(title);
-      savePortfolio({
-        id,
-        title: title.trim(),
-        description: description.trim(),
-        detail: extractPreview(combinedBody || description),
-        body: combinedBody,
-        sections: cleanSections.length ? cleanSections : undefined,
-        techs: selectedTechs,
-        url: url.trim(),
-        github: github.trim() || undefined,
-      });
-      navigate({ to: "/portfolio/$id", params: { id } });
-    }
+  if (isEditMode && loadingEdit) {
+    return (
+      <div className="min-h-screen bg-[#f5f6fa] flex items-center justify-center">
+        <p className="text-[14px] text-gray-400">불러오는 중...</p>
+      </div>
+    );
   }
 
   return (
@@ -472,10 +722,14 @@ function AddPortfolioPage() {
           <button
             type="button"
             onClick={handleSave}
-            disabled={!title.trim()}
+            disabled={!title.trim() || saveMutation.isPending}
             className="inline-flex h-9 items-center gap-2 rounded-xl bg-[#5b5bd6] px-5 text-[13px] font-medium text-white shadow-sm transition hover:bg-[#4646da] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isEditMode ? "수정 완료" : "저장하기"}
+            {saveMutation.isPending
+              ? "저장 중..."
+              : isEditMode
+                ? "수정 완료"
+                : "저장하기"}
           </button>
         </div>
       </div>
@@ -702,42 +956,99 @@ function AddPortfolioPage() {
         </section>
 
         {/* ── 섹션 목록 ── */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-[15px] font-semibold uppercase tracking-widest text-gray-900">
-              내용 섹션
-            </h2>
-            <span className="text-[11px] text-gray-400">
-              {sections.length}개
-            </span>
-          </div>
-
-          {sections.map((section, i) => (
-            <SectionEditor
-              key={section.id}
-              section={section}
-              index={i}
-              total={sections.length}
-              onChange={(u) => updateSection(section.id, u)}
-              onRemove={() => removeSection(section.id)}
-            />
-          ))}
-
-          <button
-            type="button"
-            onClick={addSection}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[#d1ccff] py-4 text-[13px] font-medium text-[#7a7af0] transition hover:border-[#5b5bd6] hover:bg-[#faf9ff] hover:text-[#5b5bd6]"
-          >
-            <svg viewBox="0 0 16 16" className="h-4 w-4" aria-hidden="true">
-              <path
-                d="M8 3v10M3 8h10"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
+        <div className="flex gap-4">
+          {sections.length >= 2 && (
+            <div className="sticky top-20 hidden self-start md:block">
+              <SectionMinimap
+                sections={sections}
+                activeIdx={activeSection}
+                onReorder={moveSection}
+                onScrollTo={scrollToSection}
               />
-            </svg>
-            섹션 추가하기
-          </button>
+            </div>
+          )}
+          <div className="min-w-0 flex-1 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-[15px] font-semibold uppercase tracking-widest text-gray-900">
+                내용 섹션
+              </h2>
+              <span className="text-[11px] text-gray-400">
+                {sections.length}개
+              </span>
+            </div>
+
+            {sections.map((section, i) => {
+              const showBefore =
+                dragIdx != null &&
+                overIdx === i &&
+                overIdx !== dragIdx &&
+                overIdx !== dragIdx + 1;
+              return (
+                <div
+                  key={section.id}
+                  ref={(el) => {
+                    if (el) sectionElRefs.current.set(section.id, el);
+                    else sectionElRefs.current.delete(section.id);
+                  }}
+                  data-section-id={section.id}
+                  onDragOver={(e) => handleSectionDragOver(e, i)}
+                  onDrop={handleSectionDrop}
+                >
+                  <div
+                    className={`mx-6 rounded-full transition-all duration-200 ease-out ${showBefore ? "mb-3 h-[3px] bg-[#5b5bd6] shadow-[0_0_8px_rgba(91,91,214,0.35)]" : "h-0"}`}
+                  />
+                  <SectionEditor
+                    section={section}
+                    index={i}
+                    total={sections.length}
+                    onChange={(u) => updateSection(section.id, u)}
+                    onRemove={() => removeSection(section.id)}
+                    isSectionDragging={dragIdx === i}
+                    onDragStart={(e) => handleSectionDragStart(e, i)}
+                    onDragEnd={handleSectionDragEnd}
+                  />
+                </div>
+              );
+            })}
+            {dragIdx != null && (
+              <div
+                onDragOver={(e) => {
+                  if (
+                    !e.dataTransfer.types.includes("application/section-drag")
+                  )
+                    return;
+                  e.preventDefault();
+                  if (overIdx !== sections.length) setOverIdx(sections.length);
+                  const edge = 80;
+                  const speed = 14;
+                  if (e.clientY > window.innerHeight - edge)
+                    window.scrollBy(0, speed);
+                }}
+                onDrop={handleSectionDrop}
+                className="min-h-[20px]"
+              >
+                <div
+                  className={`mx-6 rounded-full transition-all duration-200 ease-out ${overIdx === sections.length && overIdx !== dragIdx + 1 ? "h-[3px] bg-[#5b5bd6] shadow-[0_0_8px_rgba(91,91,214,0.35)]" : "h-0"}`}
+                />
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={addSection}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[#d1ccff] py-4 text-[13px] font-medium text-[#7a7af0] transition hover:border-[#5b5bd6] hover:bg-[#faf9ff] hover:text-[#5b5bd6]"
+            >
+              <svg viewBox="0 0 16 16" className="h-4 w-4" aria-hidden="true">
+                <path
+                  d="M8 3v10M3 8h10"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
+              </svg>
+              섹션 추가하기
+            </button>
+          </div>
         </div>
 
         {/* 하단 저장 */}
@@ -751,10 +1062,10 @@ function AddPortfolioPage() {
           <button
             type="button"
             onClick={handleSave}
-            disabled={!title.trim()}
+            disabled={!title.trim() || saveMutation.isPending}
             className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#5b5bd6] px-7 text-[13px] font-medium text-white shadow-sm transition hover:bg-[#4646da] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            저장하기
+            {saveMutation.isPending ? "저장 중..." : "저장하기"}
           </button>
         </div>
       </div>

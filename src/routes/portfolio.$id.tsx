@@ -1,10 +1,12 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  getAllPortfolios,
+  fetchPortfolioById,
   deletePortfolio,
-  getCustomPortfolios,
+  portfolioKeys,
 } from "#/lib/portfolioStore";
 import { getIsAdmin } from "#/lib/auth";
+import { isApiEnabled } from "#/lib/api";
 import { MarkdownRenderer } from "#/components/MarkdownRenderer";
 import { TechIcon } from "#/components/TechIcon";
 import { TECH_CATALOG } from "#/data/techCatalog";
@@ -44,18 +46,18 @@ function SectionBlock({ section }: { section: Section }) {
   return (
     <div className="rounded-2xl bg-white border border-gray-100 overflow-hidden shadow-[0_8px_30px_rgba(15,23,42,0.06)]">
       {section.title && (
-        <div className="border-gray-100 px-6 py-4 md:px-8">
-          <h2 className="text-[20px] font-semibold tracking-[-0.02em] text-gray-900">
+        <div className="border-gray-100 px-6 pt-4 md:px-8">
+          <h2 className="text-[24px] font-semibold tracking-[-0.02em] text-gray-900">
             {section.title}
           </h2>
         </div>
       )}
       {section.image && (
-        <div className="border-b border-gray-100">
+        <div className="border-b border-gray-100 bg-gray-50/30">
           <img
             src={section.image}
             alt={section.title || "이미지"}
-            className="max-h-[480px] w-full object-cover"
+            className="w-full object-contain"
           />
         </div>
       )}
@@ -72,16 +74,38 @@ function SectionBlock({ section }: { section: Section }) {
 function PortfolioDetailPage() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
-  const portfolios = getAllPortfolios();
-  const portfolio = portfolios.find((p) => p.id === id);
+  const queryClient = useQueryClient();
   const isAdmin = getIsAdmin();
-  const isCustom = getCustomPortfolios().some((p) => p.id === id);
-  const isEditable = isAdmin && isCustom;
 
-  function handleDelete() {
+  const { data: portfolio, isLoading: loading } = useQuery({
+    queryKey: portfolioKeys.detail(id),
+    queryFn: () => fetchPortfolioById(id),
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const isEditable = isAdmin && (isApiEnabled() || !!portfolio);
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deletePortfolio(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: portfolioKeys.all });
+      navigate({ to: "/" });
+    },
+  });
+
+  async function handleDelete() {
     if (!confirm("정말 이 포트폴리오를 삭제하시겠습니까?")) return;
-    deletePortfolio(id);
-    navigate({ to: "/" });
+    deleteMutation.mutate();
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#f5f6fa] px-4 py-12">
+        <div className="mx-auto max-w-4xl">
+          <p className="text-[14px] text-gray-400">불러오는 중...</p>
+        </div>
+      </div>
+    );
   }
 
   if (!portfolio) {
@@ -252,17 +276,12 @@ function PortfolioDetailPage() {
               {portfolio.description}
             </p>
           )}
-          {portfolio.detail && (
-            <p className="mt-1 text-[12px] text-gray-400 max-w-2xl leading-relaxed">
-              {portfolio.detail}
-            </p>
-          )}
         </header>
 
         {/* 기술 스택 — 정사각형 타일 */}
         {portfolio.techs.length > 0 && (
           <section className="rounded-2xl bg-white border border-gray-100 p-6 shadow-[0_8px_30px_rgba(15,23,42,0.06)] md:p-7">
-            <h2 className="mb-4 text-[20px] font-semibold uppercase tracking-widest">
+            <h2 className="mb-4 text-[22px] font-semibold uppercase tracking-widest">
               기술 스택
             </h2>
             <div className="flex flex-wrap gap-2.5">
