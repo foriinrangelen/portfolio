@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "portfolio2-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-03-01",
+  "vars": {
+    "JWT_SECRET": "change-this-to-a-secure-random-string",
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "portfolio-db",
+      "database_id": "ad026334-ce94-4466-bd81-1c4f9f8b8f33",
+    },
+  ],
+}
