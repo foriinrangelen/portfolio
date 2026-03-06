@@ -10,10 +10,10 @@
  * 로그인 시 클라이언트가 전송하는 데이터
  */
 export type LoginRequestDto = {
-  /** 사용자 이름 */
-  username: string;
-  /** 비밀번호 */
-  password: string;
+	/** 사용자 이름 */
+	username: string;
+	/** 비밀번호 */
+	password: string;
 };
 
 /**
@@ -24,10 +24,10 @@ export type LoginRequestDto = {
  * - role  : UI 권한 분기에 사용 ("admin" | "guest")
  */
 export type LoginResponseDto = {
-  /** JWT 액세스 토큰 */
-  token: string;
-  /** 사용자 역할 */
-  role: "admin" | "guest";
+	/** JWT 액세스 토큰 */
+	token: string;
+	/** 사용자 역할 */
+	role: 'admin' | 'guest';
 };
 
 /**
@@ -35,8 +35,8 @@ export type LoginResponseDto = {
  * 로그아웃 성공 응답
  */
 export type LogoutResponseDto = {
-  /** 성공 여부 */
-  ok: true;
+	/** 성공 여부 */
+	ok: true;
 };
 
 /**
@@ -44,10 +44,10 @@ export type LogoutResponseDto = {
  * createToken / verifyToken 에서 사용하는 내부 페이로드 구조
  */
 export type JwtPayload = {
-  /** 사용자 식별자 (username) */
-  id: string;
-  /** 사용자 역할 */
-  role: "admin" | "guest";
+	/** 사용자 식별자 (username) */
+	id: string;
+	/** 사용자 역할 */
+	role: 'admin' | 'guest';
 };
 
 /**
@@ -55,12 +55,12 @@ export type JwtPayload = {
  * DB에서 읽어온 사용자 원본 구조
  */
 export type UserRow = {
-  /** 사용자 이름 (PK) */
-  username: string;
-  /** 해시된 비밀번호 */
-  password: string;
-  /** 역할 */
-  role: "admin" | "guest";
-  /** 생성 일시 */
-  created_at: string;
+	/** 사용자 이름 (PK) */
+	username: string;
+	/** 해시된 비밀번호 */
+	password: string;
+	/** 역할 */
+	role: 'admin' | 'guest';
+	/** 생성 일시 */
+	created_at: string;
 };

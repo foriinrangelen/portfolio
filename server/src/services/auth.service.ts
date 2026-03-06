@@ -8,13 +8,13 @@ import { Context } from 'hono';
 export class AuthService {
 	constructor(@inject(AuthRepository) private repo: AuthRepository) {}
 
-	async login(c: Context, username: string, password: string) {
-		const user = await this.repo.findByCredentials(c.env.DB, username, password);
+	async login(c: Context<{ Bindings: Env }>, username: string, password: string) {
+		const user = await this.repo.findByCredentials(c, username, password);
 		if (!user) throw new HTTPException(401, { message: 'Invalid credentials' });
 		const { role } = user;
 
-		const token = await createToken({ id: username, role }, c.env.JWT_SECRET);
+		const token = await createToken({ id: username, role: role as 'admin' | 'guest' }, c.env.JWT_SECRET);
 
-		return { token, role: user.role };
+		return { token, role: user.role as 'admin' | 'guest' };
 	}
 }

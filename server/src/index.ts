@@ -6,13 +6,12 @@ import { authMiddleware } from './middlewares/auth';
 import authRouter from './routes/auth.router';
 import portfoliosRouter from './routes/portfolios';
 import { configureContainer } from './di/container';
-import type { HonoEnv } from './types';
 
 /** 클라이언트 측 허용 Origin 목록 */
-const ALLOWED_ORIGINS = ['http://localhost:5173', 'http://localhost:3000', 'https://portfolio2.kyyyy8629.pages.dev'];
+const ALLOWED_ORIGINS = ['http://localhost:5173', 'http://localhost:3000', 'https://portfolio2.kyyyy8629.pages.dev', 'https://portpolio-2di.pages.dev'];
 
 configureContainer();
-const app = new Hono<HonoEnv>();
+const app = new Hono();
 
 /* ── CORS ──────────────────────────────────────────────── */
 app.use(
@@ -25,29 +24,28 @@ app.use(
 		maxAge: 86400,
 	}),
 );
-app.options('*', (c) => c.body(null, 204));
 
 /* ── 전역 에러 핸들러 ───────────────────────────────────── */
-app.onError((err, c) => {
-	// HTTPException은 status + message 그대로 반환
-	if (err instanceof HTTPException) {
-		return c.json({ success: false, data: err.message }, err.status);
-	}
+// app.onError((err, c) => {
+// 	// HTTPException은 status + message 그대로 반환
+// 	if (err instanceof HTTPException) {
+// 		return c.json({ success: false, data: err.message }, err.status);
+// 	}
 
-	// 예상치 못한 오류는 로그 기록 후 500 반환
-	console.error(
-		'ERROR:',
-		JSON.stringify({
-			ts: new Date().toISOString(),
-			url: c.req.url,
-			method: c.req.method,
-			message: err.message,
-			stack: err.stack,
-		}),
-	);
+// 	// 예상치 못한 오류는 로그 기록 후 500 반환
+// 	console.error(
+// 		'ERROR:',
+// 		JSON.stringify({
+// 			ts: new Date().toISOString(),
+// 			url: c.req.url,
+// 			method: c.req.method,
+// 			message: err.message,
+// 			stack: err.stack,
+// 		}),
+// 	);
 
-	return c.json({ success: false, data: 'Internal Server Error' }, 500);
-});
+// 	return c.json({ success: false, data: 'Internal Server Error' }, 500);
+// });
 
 /* ── 인증 미들웨어 (전역) ────────────────────────────────── */
 // 모든 요청에서 JWT / 쿠키 토큰을 검증해 c.get('user')에 사용자 정보를 설정
