@@ -1,7 +1,8 @@
 import type { Portfolio } from "#/data/portfolios";
 import { getSessionToken } from "./auth";
 
-const BASE = (import.meta.env.VITE_API_URL as string | undefined) ??
+const BASE =
+  (import.meta.env.VITE_API_URL as string | undefined) ??
   "https://portfolio2-api.kyyyy8629.workers.dev";
 
 function isApiEnabled(): boolean {
@@ -16,9 +17,11 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   };
 
   const res = await fetch(`${BASE}${path}`, {
-    credentials: "include",
     ...options,
-    headers: { ...headers, ...(options?.headers as Record<string, string> ?? {}) },
+    headers: {
+      ...headers,
+      ...((options?.headers as Record<string, string>) ?? {}),
+    },
   });
   if (!res.ok) throw new Error(`API ${res.status}: ${res.statusText}`);
   return res.json() as Promise<T>;
