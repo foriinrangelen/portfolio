@@ -166,15 +166,22 @@ export async function removePortfolio(id: string): Promise<void> {
  * 로그인 — Access Token(바디) + Refresh Token(HttpOnly 쿠키) 수신
  *
  * 반환된 accessToken과 role을 auth.ts의 login()으로 메모리에 저장하세요.
+ *
+ * ※ request() 대신 fetch 직접 사용: 로그인은 인증 불필요 엔드포인트이므로
+ *   401 → refreshAccessToken 재시도 로직이 개입하면 안 됩니다.
  */
 export async function login(
   credentials: LoginRequestDto,
 ): Promise<LoginResponseDto> {
   if (!isApiEnabled()) throw new Error("API not configured");
-  return request<LoginResponseDto>("/auth/login", {
+  const res = await fetch(`${BASE}/auth/login`, {
     method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(credentials),
   });
+  if (!res.ok) throw new Error(`API ${res.status}: ${res.statusText}`);
+  return res.json() as Promise<LoginResponseDto>;
 }
 
 /**
