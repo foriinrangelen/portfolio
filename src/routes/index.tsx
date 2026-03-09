@@ -1,7 +1,32 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { getIsAdmin, logout } from "#/lib/auth";
+import { logoutApi } from "#/lib/api";
 import { fetchAllPortfolios, portfolioKeys } from "#/lib/portfolioStore";
+import { TECH_CATALOG } from "#/data/techCatalog";
+import type { Tech } from "#/data/portfolios";
+
+const NAME_TO_CATEGORY = new Map(TECH_CATALOG.map((t) => [t.name, t.category]));
+const INFRA_CATS = new Set(["클라우드"]);
+const GROUP_ORDER = ["언어", "프론트엔드", "백엔드", "데이터베이스", "인프라"];
+
+function getTechSummary(techs: Tech[]) {
+  const seen = new Set<string>();
+  const icons: { name: string; icon: string }[] = [];
+
+  for (const tech of techs) {
+    const cat = NAME_TO_CATEGORY.get(tech.name);
+    if (!cat) continue;
+    const group = INFRA_CATS.has(cat) ? "인프라" : cat;
+    if (GROUP_ORDER.includes(group) && !seen.has(group)) {
+      seen.add(group);
+      icons.push({ name: tech.name, icon: tech.icon });
+    }
+  }
+
+  const remaining = techs.length - icons.length;
+  return { icons, remaining };
+}
 
 export const Route = createFileRoute("/")({ component: PortfolioListPage });
 
@@ -15,7 +40,8 @@ function PortfolioListPage() {
   });
 
   function handleLogout() {
-    logout();
+    logout();          // 메모리(Access Token) 초기화
+    logoutApi();       // 서버에 Refresh Token 쿠키 만료 요청 (fire-and-forget)
     navigate({ to: "/login" });
   }
 
@@ -104,8 +130,31 @@ function PortfolioListPage() {
                   )}
                 </div>
 
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                  <span className="ml-auto text-[13px] text-[#7a7af0] group-hover:text-[#4646da]">
+                <div className="mt-3 flex items-center justify-between gap-2 min-w-0">
+                  <div className="flex items-center gap-2 min-w-0 overflow-hidden">
+                    {(() => {
+                      const { icons, remaining } = getTechSummary(item.techs ?? []);
+                      return (
+                        <>
+                          {icons.map((t) => (
+                            <img
+                              key={t.name}
+                              src={t.icon}
+                              alt={t.name}
+                              title={t.name}
+                              className="h-6 w-6 shrink-0 object-contain sm:h-7 sm:w-7"
+                            />
+                          ))}
+                          {remaining > 0 && (
+                            <span className="shrink-0 text-[12px] font-semibold text-gray-400 sm:text-[13px]">
+                              +{remaining}
+                            </span>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
+                  <span className="shrink-0 text-[13px] text-[#7a7af0] group-hover:text-[#4646da]">
                     자세히 보기 →
                   </span>
                 </div>

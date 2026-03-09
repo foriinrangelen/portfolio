@@ -29,7 +29,7 @@ function LoginPage() {
     try {
       if (isApiEnabled()) {
         const res = await apiLogin({ username, password });
-        login(res.role as Role, res.token);
+        login(res.role as Role, res.accessToken);
       } else {
         throw new Error("API not configured");
       }
